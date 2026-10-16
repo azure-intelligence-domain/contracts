@@ -1,0 +1,12 @@
+{
+  "name": "contracts",
+  "private": true,
+  "description": "Lint tooling for the integration platform contracts (adidas API guidelines via Spectral).",
+  "license": "MIT",
+  "scripts": {
+    "lint": "spectral lint 'templates/*.yaml' 'asyncapi/*.yaml' --fail-severity=warn"
+  },
+  "devDependencies": {
+    "@stoplight/spectral-cli": "6.17.0"
+  }
+}

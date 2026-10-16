@@ -1,0 +1,192 @@
+# Template for every REST API on the platform (Experience, Process and System APIs).
+# Copy into the API's repository as openapi.yaml and adapt. It passes the full ruleset:
+# adidas REST guidelines plus the platform rules.
+
+openapi: 3.0.3
+info:
+  title: '[Sales] Orders System API'
+  version: 1.0.0
+  description: >-
+    Template for every REST API on the integration platform. This example exposes orders from
+    the sales domain. Success responses are HAL (application/hal+json), errors are Problem
+    Details (application/problem+json), and every operation joins the business journey through
+    the Correlation-Id header.
+  contact:
+    name: Sales integration team
+    url: https://github.com/azure-intelligence-domain/system-api-salesforce
+  license:
+    name: MIT
+    url: https://github.com/azure-intelligence-domain/contracts/blob/main/LICENSE
+  x-gateway: other
+x-gateway: other
+externalDocs:
+  description: EventCatalog entry of this API
+  url: https://github.com/azure-intelligence-domain/eventcatalog
+servers:
+  - url: https://apim-intplat-demo.azure-api.net/sales/orders
+    description: Azure API Management, demo environment. No version in the URI.
+security:
+  - subscriptionKey: []
+tags:
+  - name: Orders
+    description: Orders of the sales domain.
+paths:
+  /orders/{orderId}:
+    x-summary: Order
+    get:
+      tags:
+        - Orders
+      operationId: retrieveOrder
+      summary: Retrieve Order
+      description: Retrieve one order by its order number.
+      parameters:
+        - $ref: '#/components/parameters/orderId'
+        - $ref: '#/components/parameters/correlationId'
+      responses:
+        '200':
+          description: The order.
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/order'
+              example:
+                _links:
+                  self:
+                    href: /orders/4711
+                orderNumber: '4711'
+                customerId: ACME
+                status: confirmed
+                totalAmount:
+                  value: 84000.0
+                  currency: EUR
+                createdAt: '2026-10-03T09:12:00Z'
+                updatedAt: '2026-10-06T08:30:00Z'
+        '404':
+          description: No order with this order number exists.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/problemDetail'
+              example:
+                type: https://github.com/azure-intelligence-domain/contracts/problems/not-found
+                title: Order Not Found
+                status: 404
+                detail: No order with order number 4712 exists.
+                instance: /orders/4712
+components:
+  securitySchemes:
+    subscriptionKey:
+      type: apiKey
+      in: header
+      name: Ocp-Apim-Subscription-Key
+      description: API Management subscription key of the consuming application.
+  parameters:
+    orderId:
+      name: orderId
+      in: path
+      required: true
+      description: The order number.
+      schema:
+        type: string
+      example: '4711'
+    correlationId:
+      name: Correlation-Id
+      in: header
+      required: true
+      description: >-
+        The business journey this call belongs to, for example ord-4711. The same value as the
+        correlationid attribute of the events in that journey.
+      schema:
+        type: string
+        pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+        maxLength: 64
+      example: ord-4711
+  schemas:
+    order:
+      type: object
+      description: An order as the sales domain knows it.
+      required:
+        - _links
+        - orderNumber
+        - customerId
+        - status
+        - createdAt
+      properties:
+        _links:
+          $ref: '#/components/schemas/halLinks'
+        orderNumber:
+          type: string
+          description: The order number.
+        customerId:
+          type: string
+          description: The customer who placed the order.
+        status:
+          type: string
+          description: Where the order is in its lifecycle.
+          enum:
+            - created
+            - confirmed
+            - shipped
+        totalAmount:
+          $ref: '#/components/schemas/money'
+        createdAt:
+          type: string
+          format: date-time
+          description: When the order was created. ISO 8601, UTC.
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the order last changed. ISO 8601, UTC.
+    money:
+      type: object
+      description: An amount of money.
+      required:
+        - value
+        - currency
+      properties:
+        value:
+          type: number
+          description: The amount.
+        currency:
+          type: string
+          description: ISO 4217 currency code.
+          pattern: '^[A-Z]{3}$'
+    halLinks:
+      type: object
+      description: HAL links of the resource.
+      required:
+        - self
+      properties:
+        self:
+          type: object
+          description: Link to this resource.
+          required:
+            - href
+          properties:
+            href:
+              type: string
+              description: URI of the resource.
+    problemDetail:
+      type: object
+      description: Problem Details for HTTP APIs (RFC 9457).
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI identifying the problem type.
+        title:
+          type: string
+          description: Short, human-readable summary of the problem type.
+        status:
+          type: integer
+          description: The HTTP status code.
+        detail:
+          type: string
+          description: Explanation specific to this occurrence.
+        instance:
+          type: string
+          description: URI of the request that caused the problem.

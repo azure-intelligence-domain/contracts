@@ -1,0 +1,166 @@
+# Template for an event producer's AsyncAPI contract.
+#
+# Copy into the producing repository as asyncapi.yaml (adidas: the API design lives in the same
+# repository as its implementation; one spec per namespace). Then replace the relative $refs
+# below by released URLs of this repository, for example:
+#   https://raw.githubusercontent.com/azure-intelligence-domain/contracts/v1.0.0/asyncapi/landscape.asyncapi.yaml
+#   https://raw.githubusercontent.com/azure-intelligence-domain/contracts/v1.0.0/schemas/envelope/1.0.0/envelope.schema.json
+
+asyncapi: 2.6.0
+id: urn:azure-intelligence-domain:supply:system-api-wms
+info:
+  title: '[Supply] Warehouse Events'
+  version: 1.0.0
+  description: >-
+    Events published by the warehouse management system API in the supply domain. This file is
+    the template for every event contract on the platform: it shows the required envelope, the
+    naming conventions and the producer and consumer lists.
+  contact:
+    name: Supply integration team
+    url: https://github.com/azure-intelligence-domain/system-api-wms
+  license:
+    name: MIT
+    url: https://github.com/azure-intelligence-domain/contracts/blob/main/LICENSE
+tags:
+  - name: supply
+    description: Supply domain.
+externalDocs:
+  description: EventCatalog entry of the warehouse management system API
+  url: https://github.com/azure-intelligence-domain/eventcatalog
+defaultContentType: application/cloudevents+json
+servers:
+  demo-event-grid:
+    $ref: '../asyncapi/landscape.asyncapi.yaml#/components/servers/demo-event-grid'
+channels:
+  supply.wms.event.stock-reserved:
+    description: >-
+      Stock was reserved in the warehouse for an order. Published once per order after all its
+      lines are reserved, so fulfilment can request the shipment.
+    servers:
+      - demo-event-grid
+    x-configurations:
+      demo:
+        eventGrid:
+          topic: evgt-intplat-supply
+          eventType: com.acme.supply.stock.reserved
+    publish:
+      operationId: publishStockReserved
+      summary: Publish that stock was reserved for an order.
+      description: >-
+        The warehouse management system API publishes this event after the warehouse confirmed the
+        reservation of every order line.
+      security:
+        - entraIdEventGrid:
+            - https://eventgrid.azure.net/.default
+      tags:
+        - name: supply
+          description: Supply domain.
+      externalDocs:
+        description: Reservation flow in the system API
+        url: https://github.com/azure-intelligence-domain/system-api-wms
+      x-producers:
+        demo:
+          - system-api-wms
+      message:
+        $ref: '#/components/messages/stockReserved'
+    subscribe:
+      operationId: receiveStockReserved
+      summary: Receive that stock was reserved for an order.
+      description: >-
+        Each consumer receives the event from its own Service Bus queue, fed by an Event Grid
+        subscription on the event type.
+      security:
+        - entraIdEventGrid:
+            - https://eventgrid.azure.net/.default
+      tags:
+        - name: supply
+          description: Supply domain.
+      externalDocs:
+        description: Fulfilment process
+        url: https://github.com/azure-intelligence-domain/process-api-fulfilment
+      x-consumers:
+        demo:
+          - process-api-fulfilment
+      message:
+        $ref: '#/components/messages/stockReserved'
+components:
+  securitySchemes:
+    entraIdEventGrid:
+      $ref: '../asyncapi/landscape.asyncapi.yaml#/components/securitySchemes/entraIdEventGrid'
+  messages:
+    stockReserved:
+      name: stockReserved
+      title: Stock Reserved
+      summary: Stock was reserved for an order.
+      description: >-
+        A CloudEvent of type com.acme.supply.stock.reserved. The envelope carries the journey
+        (correlationid) and the business keys; orderid is always present for this event.
+      contentType: application/cloudevents+json
+      payload:
+        allOf:
+          - $ref: '../schemas/envelope/1.0.0/envelope.schema.json'
+          - type: object
+            description: What this event adds to the envelope.
+            required:
+              - type
+              - orderid
+              - data
+            properties:
+              type:
+                const: com.acme.supply.stock.reserved
+              orderid:
+                type: string
+              data:
+                $ref: '#/components/schemas/stockReservedData'
+      examples:
+        - name: acmeOrder4711
+          summary: Stock reserved for ACME's order 4711.
+          payload:
+            specversion: '1.0'
+            id: 5f0c2a3e-8b1d-4f4e-9c2a-7d1e0b9a4711
+            source: /system-api-wms/1.0.0
+            type: com.acme.supply.stock.reserved
+            time: '2026-10-07T14:02:00Z'
+            datacontenttype: application/json
+            correlationid: ord-4711
+            customerid: ACME
+            orderid: '4711'
+            data:
+              warehouseId: BRU-01
+              reservedAt: '2026-10-07T14:01:58Z'
+              orderLines:
+                - productId: SKU-1042
+                  reservedQuantity: 12
+  schemas:
+    stockReservedData:
+      type: object
+      description: The reservation, as the warehouse confirmed it.
+      required:
+        - warehouseId
+        - reservedAt
+        - orderLines
+      properties:
+        warehouseId:
+          type: string
+          description: The warehouse holding the stock.
+        reservedAt:
+          type: string
+          format: date-time
+          description: When the reservation was confirmed. ISO 8601, UTC.
+        orderLines:
+          type: array
+          description: The reserved order lines.
+          minItems: 1
+          items:
+            type: object
+            required:
+              - productId
+              - reservedQuantity
+            properties:
+              productId:
+                type: string
+                description: The product, as the warehouse knows it.
+              reservedQuantity:
+                type: integer
+                minimum: 1
+                description: Units reserved for this line.

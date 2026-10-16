@@ -1,0 +1,11 @@
+extends:
+  - ./rulesets/azure-intelligence-domain.spectral.yaml
+
+overrides:
+  # The landscape is a library of shared definitions that other contracts $ref:
+  # it has no servers of its own and its components are used elsewhere.
+  - files:
+      - "asyncapi/landscape.asyncapi.yaml"
+    rules:
+      asyncapi-servers: off
+      asyncapi-unused-components-server: off

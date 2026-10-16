@@ -1,0 +1,78 @@
+asyncapi: 2.6.0
+id: urn:azure-intelligence-domain:platform:landscape
+info:
+  title: '[Platform] Messaging Landscape'
+  version: 1.0.0
+  description: >-
+    The shared servers and security schemes of the integration platform, defined once and
+    maintained by the platform team (the adidas "cluster landscape"). Every AsyncAPI contract
+    refers to these definitions with $ref instead of repeating them. One environment exists:
+    demo, in Azure region Belgium Central.
+  contact:
+    name: Platform team
+    url: https://github.com/azure-intelligence-domain/contracts
+  license:
+    name: MIT
+    url: https://github.com/azure-intelligence-domain/contracts/blob/main/LICENSE
+tags:
+  - name: platform
+    description: Shared definitions of the integration platform.
+externalDocs:
+  description: Integration platform architecture and decisions
+  url: https://github.com/azure-intelligence-domain/ai-intelligence-domain
+defaultContentType: application/cloudevents+json
+channels: {}
+components:
+  servers:
+    demo-event-grid:
+      url: '{topicName}.belgiumcentral-1.eventgrid.azure.net'
+      protocol: https
+      description: >-
+        Azure Event Grid custom topic of one domain, using the CloudEvents 1.0 schema in
+        structured mode. Producers publish with a managed identity holding the EventGrid Data
+        Sender role on that topic. Event Grid delivers each event type to the Service Bus queue
+        of every subscriber.
+      variables:
+        topicName:
+          # No `examples` list: Spectral 6.17 wrongly expects a string there (AsyncAPI 2.6 says array).
+          description: The Event Grid topic of the producing domain, for example evgt-intplat-supply.
+          default: evgt-intplat-sales
+      security:
+        - entraIdEventGrid:
+            - https://eventgrid.azure.net/.default
+    demo-service-bus:
+      url: '{namespace}.servicebus.windows.net'
+      protocol: amqps
+      protocolVersion: '1.0'
+      description: >-
+        Azure Service Bus namespace (Basic tier). Every subscriber owns one queue, with its own
+        dead-letter queue, fed by an Event Grid subscription. Consumers receive with a managed
+        identity holding the Azure Service Bus Data Receiver role on their queue.
+      variables:
+        namespace:
+          description: The Service Bus namespace of the platform.
+          default: sbns-intplat-demo
+      security:
+        - entraIdServiceBus:
+            - https://servicebus.azure.net/.default
+  securitySchemes:
+    entraIdEventGrid:
+      type: oauth2
+      description: >-
+        Microsoft Entra ID token for Event Grid. Building blocks use their managed identity; no
+        keys or connection strings.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/organizations/oauth2/v2.0/token
+          scopes:
+            https://eventgrid.azure.net/.default: Publish events to Event Grid topics.
+    entraIdServiceBus:
+      type: oauth2
+      description: >-
+        Microsoft Entra ID token for Service Bus. Building blocks use their managed identity; no
+        keys or connection strings.
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/organizations/oauth2/v2.0/token
+          scopes:
+            https://servicebus.azure.net/.default: Send and receive Service Bus messages.

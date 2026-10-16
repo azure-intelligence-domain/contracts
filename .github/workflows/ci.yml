@@ -1,0 +1,42 @@
+name: ci
+
+# Every pull request and every push to main: lint the contracts against the
+# adidas API guidelines, then lint and test the envelope library and rules.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Lint contracts (adidas API guidelines)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Spectral (warnings fail the build)
+        run: npx spectral lint "templates/*.yaml" "asyncapi/*.yaml" --fail-severity=warn --format github-actions --format stylish
+
+  library:
+    name: Envelope library and rule tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest -v

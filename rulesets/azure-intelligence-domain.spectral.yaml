@@ -1,0 +1,300 @@
+# Spectral ruleset of the integration platform.
+#
+# 1. The adidas rulesets, vendored unmodified (./adidas/). Both are needed: neither upstream
+#    file contains every adidas rule.
+# 2. Adaptations, each with its reason (ADR 0008 in ai-intelligence-domain).
+# 3. adidas guidelines that adidas did not turn into lint rules, implemented here
+#    (most AsyncAPI guidelines and some REST naming rules). Prefix: platform-.
+#
+# Severity follows the guideline wording: MUST = error, SHOULD = warn.
+# CI runs with --fail-severity=warn, so warnings fail the build too.
+
+extends:
+  - ./adidas/adidas-spectral.yaml
+  - ./adidas/adidas-maturity.spectral.yml
+
+documentationUrl: https://github.com/azure-intelligence-domain/ai-intelligence-domain/blob/main/docs/adr/0008-adidas-api-guidelines.md
+
+rules:
+  # --------------------------------------------------------------------------
+  # Adaptations of the adidas ruleset
+  # --------------------------------------------------------------------------
+
+  # No LeanIX here. EventCatalog is the registry; see platform-external-docs-catalog.
+  adidas-oas3-x-leanixid-required: off
+  adidas-oas3-x-leanixid-uuid: off
+
+  # adidas requires a contact name plus an email OR a url (AsyncAPI guidelines,
+  # Contact Information). Spectral's "all" set demands both; this public
+  # repository has no team mailbox. platform-contact-email-or-url enforces adidas.
+  contact-properties: off
+  asyncapi-info-contact-properties: off
+
+  # adidas: AsyncAPI version SHOULD be 2.6.0. Spectral's rule pushes 3.x.
+  asyncapi-latest-version: off
+
+  # adidas MUSTs that Spectral reports as warnings: raised to errors.
+  info-contact: error
+  asyncapi-info-contact: error
+  asyncapi-info-description: error
+  asyncapi-operation-description: error
+  asyncapi-operation-operationId: error
+  asyncapi-servers: error
+
+  # --------------------------------------------------------------------------
+  # General (OpenAPI and AsyncAPI)
+  # --------------------------------------------------------------------------
+
+  platform-contact-email-or-url:
+    description: "The contact MUST have a name and at least an email or a url (adidas, Contact Information)."
+    severity: error
+    given: $.info.contact
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: [name]
+          anyOf:
+            - required: [email]
+            - required: [url]
+
+  platform-external-docs-catalog:
+    description: "The contract SHOULD link to its catalog entry in externalDocs (adidas: LeanIX fact sheet; here: EventCatalog)."
+    severity: warn
+    given: $
+    then:
+      field: externalDocs
+      function: truthy
+
+  # --------------------------------------------------------------------------
+  # AsyncAPI (adidas asynchronous API guidelines)
+  # --------------------------------------------------------------------------
+
+  platform-asyncapi-version:
+    description: "AsyncAPI contracts SHOULD use version 2.6.0 (adidas, AsyncAPI Version)."
+    severity: warn
+    formats: [aas2]
+    given: $.asyncapi
+    then:
+      function: pattern
+      functionOptions:
+        match: "^2\\.6\\.0$"
+
+  platform-asyncapi-id:
+    description: "AsyncAPI contracts SHOULD have an id urn:azure-intelligence-domain:<namespace>:<name> (adidas, AsyncAPI ID)."
+    severity: warn
+    formats: [aas2]
+    given: $
+    then:
+      field: id
+      function: pattern
+      functionOptions:
+        match: "^urn:azure-intelligence-domain:[a-z0-9-]+:[a-z0-9-]+$"
+
+  platform-channel-name:
+    description: "Channel names MUST be <namespace>.<source>.<event|command|query>.<topic-name> (adidas channel naming)."
+    severity: error
+    formats: [aas2]
+    given: $.channels[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-z0-9]*\\.[a-z][a-z0-9-]*\\.(event|command|query)\\.[a-z0-9]+(-[a-z0-9]+)*$"
+
+  platform-channel-description:
+    description: "Every channel MUST have a description (adidas, Meaningful Descriptions)."
+    severity: error
+    formats: [aas2]
+    given: $.channels[*]
+    then:
+      field: description
+      function: truthy
+
+  platform-channel-servers:
+    description: "Every channel MUST list the servers it is available on (adidas, Channels)."
+    severity: error
+    formats: [aas2]
+    given: $.channels[*]
+    then:
+      field: servers
+      function: truthy
+
+  platform-operation-required-fields:
+    description: "Every publish/subscribe operation MUST have operationId, summary, description, security, tags, externalDocs and message (adidas, Channels)."
+    severity: error
+    formats: [aas2]
+    given: $.channels[*][publish,subscribe]
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: [operationId, summary, description, security, tags, externalDocs, message]
+
+  platform-producers-listed:
+    description: "Publish operations MUST list their producers per environment in x-producers. adidas says SHOULD; the Intelligence domain needs it to answer who produces what."
+    severity: error
+    formats: [aas2]
+    given: $.channels[*].publish
+    then:
+      field: x-producers
+      function: truthy
+
+  platform-consumers-listed:
+    description: "Subscribe operations MUST list their consumers per environment in x-consumers. adidas says SHOULD; the Intelligence domain needs it to answer which consumers break on a change."
+    severity: error
+    formats: [aas2]
+    given: $.channels[*].subscribe
+    then:
+      field: x-consumers
+      function: truthy
+
+  platform-message-name-camelCase:
+    description: "Message names MUST be camelCase (adidas, Naming Conventions)."
+    severity: error
+    formats: [aas2]
+    given: $.components.messages[*]~
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  platform-message-description:
+    description: "Every message MUST have a description (adidas, Meaningful Descriptions)."
+    severity: error
+    formats: [aas2]
+    given: $.components.messages[*]
+    then:
+      field: description
+      function: truthy
+
+  platform-message-cloudevents:
+    description: "Every message MUST be a CloudEvent in structured mode: contentType application/cloudevents+json (the one rule)."
+    severity: error
+    formats: [aas2]
+    given: $.components.messages[*]
+    then:
+      field: contentType
+      function: enumeration
+      functionOptions:
+        values: [application/cloudevents+json]
+
+  platform-message-envelope:
+    description: "Every message payload MUST be allOf [the platform envelope, the event-specific part]. Standardise the envelope, not the payload."
+    severity: error
+    formats: [aas2]
+    given: $.components.messages[*].payload
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: [allOf]
+          properties:
+            allOf:
+              type: array
+              minItems: 2
+              items:
+                - type: object
+                  required: [$id]
+                  properties:
+                    $id:
+                      type: string
+                      pattern: "^https://raw\\.githubusercontent\\.com/azure-intelligence-domain/contracts/v[0-9]+\\.[0-9]+\\.[0-9]+/schemas/envelope/"
+
+  platform-message-examples:
+    description: "Every message SHOULD have a real-like example (adidas, real-like examples). Examples are validated against the payload."
+    severity: warn
+    formats: [aas2]
+    given: $.components.messages[*]
+    then:
+      field: examples
+      function: truthy
+
+  platform-payload-properties-camelCase:
+    description: "Payload properties MUST be camelCase ASCII (adidas, JSON). The lowercase CloudEvents attributes satisfy this too."
+    severity: error
+    formats: [aas2]
+    given: $.components.messages[*].payload..properties[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-zA-Z0-9]*$"
+
+  # --------------------------------------------------------------------------
+  # OpenAPI (adidas REST API guidelines not covered by the adidas ruleset)
+  # --------------------------------------------------------------------------
+
+  platform-oas-title-domain:
+    description: "The API name MUST start with the domain in square brackets, e.g. '[Sales] Orders System API' (adidas, API Name)."
+    severity: error
+    formats: [oas3]
+    given: $.info.title
+    then:
+      function: pattern
+      functionOptions:
+        match: "^\\[[A-Z][A-Za-z]*( [A-Z][A-Za-z]*)*\\] [A-Z][A-Za-z0-9]*( [A-Z][A-Za-z0-9]*)* API$"
+
+  platform-oas-resource-name:
+    description: "Every resource MUST have a name in x-summary (adidas, Resource Name)."
+    severity: error
+    formats: [oas3]
+    given: $.paths[*]
+    then:
+      field: x-summary
+      function: truthy
+
+  platform-oas-summary-title-case:
+    description: "Every operation summary MUST be in Title Case, e.g. 'Retrieve List of Orders' (adidas, Action Name)."
+    severity: error
+    formats: [oas3]
+    given: $.paths[*][get,put,post,delete,patch].summary
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[A-Z][a-zA-Z0-9]*( ([A-Z][a-zA-Z0-9]*|of|and|or|by|for|to|in|on|at|a|an|the|with|from))*$"
+
+  platform-oas-no-uri-versioning:
+    description: "URIs MUST NOT contain a version (adidas, Identifier Stability). Breaking changes create a new resource variant or media type."
+    severity: error
+    formats: [oas3]
+    given:
+      - "$.paths[*]~"
+      - "$.servers[*].url"
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "(^|/)v[0-9]+(\\.[0-9]+)*(/|$)"
+
+  platform-oas-error-problem-json:
+    description: "Error responses MUST be application/problem+json (adidas, Error Reporting)."
+    severity: error
+    formats: [oas3]
+    given: $.paths..responses[?(@property >= 400 && @property < 600)].content[*]~
+    then:
+      function: enumeration
+      functionOptions:
+        values: [application/problem+json]
+
+  platform-oas-correlation-id:
+    description: "Every operation MUST accept the Correlation-Id header, so synchronous calls join the same journey as events (the one rule)."
+    severity: error
+    formats: [oas3]
+    given: $.paths[*][get,put,post,delete,patch]
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: [parameters]
+          properties:
+            parameters:
+              type: array
+              contains:
+                type: object
+                required: [name, in]
+                properties:
+                  name: { const: Correlation-Id }
+                  in: { const: header }
+
