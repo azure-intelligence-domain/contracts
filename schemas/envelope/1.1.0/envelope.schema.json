@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/azure-intelligence-domain/contracts/v1.2.0/schemas/envelope/1.1.0/envelope.schema.json",
+  "title": "Integration Platform Event Envelope",
+  "description": "Every event on the integration platform is a CloudEvents 1.0 event in structured JSON mode, carrying a correlation identifier and at least one business key. Version 1.1.0 adds componentid, so platform events (gateway actions, deployments) can identify the building block or flow they concern. Standardise the envelope, not the payload. CloudEvents requires context attribute names to be lowercase letters and digits only, so the envelope attributes are lowercase; the data payload follows the adidas camelCase naming convention.",
+  "type": "object",
+  "required": [
+    "specversion",
+    "id",
+    "source",
+    "type",
+    "time",
+    "datacontenttype",
+    "correlationid",
+    "data"
+  ],
+  "properties": {
+    "specversion": {
+      "description": "CloudEvents specification version.",
+      "const": "1.0"
+    },
+    "id": {
+      "description": "Unique identifier of this event within its source. Producers use a UUID.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "source": {
+      "description": "Where the event came from: the producing building block and its deployed version, as a path.",
+      "type": "string",
+      "pattern": "^/[A-Za-z0-9._~/-]+$",
+      "maxLength": 256
+    },
+    "type": {
+      "description": "The contract the event follows, in reverse-DNS notation: <organisation>.<domain>.<entity>.<fact>, at least four segments.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-zA-Z0-9]*){3,}$",
+      "maxLength": 256
+    },
+    "subject": {
+      "description": "Optional: the entity the event is about, within the source.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "time": {
+      "description": "When the fact happened. ISO 8601, always UTC (Z), as required by the adidas common data types.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
+    },
+    "datacontenttype": {
+      "description": "The data payload is always JSON.",
+      "const": "application/json"
+    },
+    "dataschema": {
+      "description": "Optional: URI of the JSON Schema of the data payload.",
+      "type": "string",
+      "format": "uri"
+    },
+    "correlationid": {
+      "description": "Which business journey this event belongs to, across every system, for example ord-4711.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 64
+    },
+    "customerid": {
+      "description": "Business key: the customer this event concerns.",
+      "$ref": "#/definitions/businessKey"
+    },
+    "orderid": {
+      "description": "Business key: the order this event concerns.",
+      "$ref": "#/definitions/businessKey"
+    },
+    "partnerid": {
+      "description": "Business key: the external partner this event concerns, for example a third-party logistics provider.",
+      "$ref": "#/definitions/businessKey"
+    },
+    "componentid": {
+      "description": "Business key: the building block or flow this event concerns, for example stock-to-3pl. Used by platform events such as gateway actions and deployments.",
+      "$ref": "#/definitions/businessKey"
+    },
+    "traceparent": {
+      "description": "Optional: W3C Trace Context of the producing operation (CloudEvents distributed tracing extension), so one trace spans every hop.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
+    },
+    "tracestate": {
+      "description": "Optional: W3C Trace Context vendor-specific state.",
+      "type": "string",
+      "maxLength": 512
+    },
+    "data": {
+      "description": "The event payload. Its schema is defined per event type in the producer's AsyncAPI contract.",
+      "type": "object"
+    }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "customerid"
+      ]
+    },
+    {
+      "required": [
+        "orderid"
+      ]
+    },
+    {
+      "required": [
+        "partnerid"
+      ]
+    },
+    {
+      "required": [
+        "componentid"
+      ]
+    }
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "businessKey": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9-]*$",
+      "maxLength": 64
+    }
+  }
+}

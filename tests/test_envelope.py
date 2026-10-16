@@ -92,7 +92,7 @@ def test_correlation_id_is_required():
     assert "correlationid: required" in problems_of(an_event(correlationid=...))
 
 
-@pytest.mark.parametrize("key", ["customerid", "orderid", "partnerid"])
+@pytest.mark.parametrize("key", ["customerid", "orderid", "partnerid", "componentid"])
 def test_any_single_business_key_is_enough(key):
     event = an_event(customerid=..., orderid=...)
     event[key] = "ACME-1"
@@ -102,7 +102,7 @@ def test_any_single_business_key_is_enough(key):
 def test_at_least_one_business_key_is_required():
     problems = problems_of(an_event(customerid=..., orderid=...))
     assert problems == [
-        "event must carry at least one business key: customerid, orderid, partnerid"
+        "event must carry at least one business key: customerid, orderid, partnerid, componentid"
     ]
 
 
@@ -153,3 +153,14 @@ def test_traceparent_must_be_w3c_trace_context():
     assert any(
         problem.startswith("traceparent:") for problem in problems_of(an_event(traceparent="abc"))
     )
+
+
+def test_platform_events_identify_their_component():
+    event = new_event(
+        type="com.acme.platform.deployment.completed",
+        source="/integration-platform/1.1.0",
+        correlation_id="deploy-38944180401",
+        keys=BusinessKeys(component_id="stock-to-3pl"),
+        data={"version": "2.4.0"},
+    )
+    assert event["componentid"] == "stock-to-3pl"

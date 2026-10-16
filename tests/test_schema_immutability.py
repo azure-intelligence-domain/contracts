@@ -6,6 +6,7 @@ released file fails this test: publish a new version instead.
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -37,8 +38,10 @@ def test_schema_id_matches_its_version():
         schema = json.loads(
             (ENVELOPE / version / "envelope.schema.json").read_text(encoding="utf-8")
         )
-        assert schema["$id"].endswith(
-            f"/v{version}/schemas/envelope/{version}/envelope.schema.json"
+        # The $id points at the contracts release (tag) that first published this version.
+        assert re.search(
+            rf"/contracts/v\d+\.\d+\.\d+/schemas/envelope/{re.escape(version)}/envelope\.schema\.json$",
+            schema["$id"],
         )
 
 

@@ -44,7 +44,7 @@ flowchart LR
     subgraph envelope["Envelope · this repository · same for every event"]
         core["CloudEvents core<br/>specversion · id · source · type · time · datacontenttype"]
         journey["Journey<br/>correlationid · required"]
-        keys["Business keys<br/>customerid · orderid · partnerid<br/>at least one required"]
+        keys["Business keys<br/>customerid · orderid · partnerid · componentid<br/>at least one required"]
         trace["Tracing<br/>traceparent · tracestate · optional"]
     end
     subgraph payload["data · producer's AsyncAPI contract · differs per event"]
@@ -56,7 +56,7 @@ flowchart LR
 | Rule | Enforced by |
 |---|---|
 | `correlationid` is required | schema `required` |
-| At least one business key (`customerid`, `orderid`, `partnerid`) | schema `anyOf` |
+| At least one business key (`customerid`, `orderid`, `partnerid`, `componentid`) | schema `anyOf` |
 | `time` is ISO 8601 in UTC (`Z`) | schema `pattern` (adidas common data types) |
 | `type` is reverse-DNS, at least four segments | schema `pattern` |
 | No `null` values, no unknown attributes from producers | schema types, `additionalProperties: false` |
@@ -83,7 +83,7 @@ Install a released version, pinned:
 
 ```toml
 dependencies = [
-  "integration-envelope @ git+https://github.com/azure-intelligence-domain/contracts@v1.1.0",
+  "integration-envelope @ git+https://github.com/azure-intelligence-domain/contracts@v1.2.0",
 ]
 ```
 

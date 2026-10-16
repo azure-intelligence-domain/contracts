@@ -8,11 +8,11 @@ from uuid import uuid4
 
 from jsonschema import Draft7Validator, FormatChecker
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 SCHEMA: dict[str, Any] = json.loads(
     files("integration_envelope").joinpath("envelope.schema.json").read_text(encoding="utf-8")
 )
-BUSINESS_KEYS = ("customerid", "orderid", "partnerid")
+BUSINESS_KEYS = ("customerid", "orderid", "partnerid", "componentid")
 
 _validator = Draft7Validator(SCHEMA, format_checker=FormatChecker())
 
@@ -32,12 +32,14 @@ class BusinessKeys:
     customer_id: str | None = None
     order_id: str | None = None
     partner_id: str | None = None
+    component_id: str | None = None
 
     def as_attributes(self) -> dict[str, str]:
         attributes = {
             "customerid": self.customer_id,
             "orderid": self.order_id,
             "partnerid": self.partner_id,
+            "componentid": self.component_id,
         }
         # adidas JSON rule: fields with a null value are omitted.
         return {name: value for name, value in attributes.items() if value is not None}

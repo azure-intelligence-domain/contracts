@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/azure-intelligence-domain/contracts/v1.0.0/schemas/envelope/1.0.0/envelope.schema.json",
+  "$id": "https://raw.githubusercontent.com/azure-intelligence-domain/contracts/v1.2.0/schemas/envelope/1.1.0/envelope.schema.json",
   "title": "Integration Platform Event Envelope",
-  "description": "Every event on the integration platform is a CloudEvents 1.0 event in structured JSON mode, carrying a correlation identifier and at least one business key. Standardise the envelope, not the payload. CloudEvents requires context attribute names to be lowercase letters and digits only, so the envelope attributes are lowercase; the data payload follows the adidas camelCase naming convention.",
+  "description": "Every event on the integration platform is a CloudEvents 1.0 event in structured JSON mode, carrying a correlation identifier and at least one business key. Version 1.1.0 adds componentid, so platform events (gateway actions, deployments) can identify the building block or flow they concern. Standardise the envelope, not the payload. CloudEvents requires context attribute names to be lowercase letters and digits only, so the envelope attributes are lowercase; the data payload follows the adidas camelCase naming convention.",
   "type": "object",
   "required": [
     "specversion",
@@ -76,6 +76,10 @@
       "description": "Business key: the external partner this event concerns, for example a third-party logistics provider.",
       "$ref": "#/definitions/businessKey"
     },
+    "componentid": {
+      "description": "Business key: the building block or flow this event concerns, for example stock-to-3pl. Used by platform events such as gateway actions and deployments.",
+      "$ref": "#/definitions/businessKey"
+    },
     "traceparent": {
       "description": "Optional: W3C Trace Context of the producing operation (CloudEvents distributed tracing extension), so one trace spans every hop.",
       "type": "string",
@@ -92,9 +96,26 @@
     }
   },
   "anyOf": [
-    { "required": ["customerid"] },
-    { "required": ["orderid"] },
-    { "required": ["partnerid"] }
+    {
+      "required": [
+        "customerid"
+      ]
+    },
+    {
+      "required": [
+        "orderid"
+      ]
+    },
+    {
+      "required": [
+        "partnerid"
+      ]
+    },
+    {
+      "required": [
+        "componentid"
+      ]
+    }
   ],
   "additionalProperties": false,
   "definitions": {

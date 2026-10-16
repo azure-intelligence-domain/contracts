@@ -7,7 +7,7 @@
 # repository as its implementation; one spec per namespace). Then replace the relative $refs
 # below by released URLs of this repository, for example:
 #   https://raw.githubusercontent.com/azure-intelligence-domain/contracts/v1.0.0/asyncapi/landscape.asyncapi.yaml
-#   https://raw.githubusercontent.com/azure-intelligence-domain/contracts/v1.0.0/schemas/envelope/1.0.0/envelope.schema.json
+#   https://raw.githubusercontent.com/azure-intelligence-domain/contracts/v1.0.0/schemas/envelope/1.1.0/envelope.schema.json
 
 asyncapi: 2.6.0
 id: urn:azure-intelligence-domain:supply:system-api-wms
@@ -82,7 +82,7 @@ components:
       contentType: application/cloudevents+json
       payload:
         allOf:
-          - $ref: '../schemas/envelope/1.0.0/envelope.schema.json'
+          - $ref: '../schemas/envelope/1.1.0/envelope.schema.json'
           - type: object
             description: What this event adds to the envelope.
             required:
