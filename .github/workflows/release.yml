@@ -34,11 +34,19 @@ jobs:
       - run: uv run pytest
       - run: uv build
 
+      - name: Collect release assets
+        run: |
+          # Latest envelope as envelope.schema.json (used by the catalog); every version by name.
+          cp src/integration_envelope/envelope.schema.json dist/envelope.schema.json
+          for dir in schemas/envelope/*/; do
+            cp "$dir/envelope.schema.json" "dist/envelope-$(basename "$dir").schema.json"
+          done
+          ls dist
+
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${GITHUB_REF_NAME}" dist/* \
-            schemas/envelope/*/envelope.schema.json \
             --title "${GITHUB_REF_NAME}" \
             --notes "Envelope schema and integration-envelope library ${GITHUB_REF_NAME}. Install: integration-envelope @ git+https://github.com/azure-intelligence-domain/contracts@${GITHUB_REF_NAME}"
