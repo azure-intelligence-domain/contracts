@@ -1,5 +1,8 @@
 # Template for an event producer's AsyncAPI contract.
 #
+# A producer's contract only has publish operations: the producer owns the message definitions.
+# Each consumer declares what it receives in its own contract (event-consumer.asyncapi.yaml).
+#
 # Copy into the producing repository as asyncapi.yaml (adidas: the API design lives in the same
 # repository as its implementation; one spec per namespace). Then replace the relative $refs
 # below by released URLs of this repository, for example:
@@ -13,8 +16,8 @@ info:
   version: 1.0.0
   description: >-
     Events published by the warehouse management system API in the supply domain. This file is
-    the template for every event contract on the platform: it shows the required envelope, the
-    naming conventions and the producer and consumer lists.
+    the template for every event producer on the platform: it shows the required envelope, the
+    naming conventions and the producer list.
   contact:
     name: Supply integration team
     url: https://github.com/azure-intelligence-domain/system-api-wms
@@ -63,32 +66,13 @@ channels:
           - system-api-wms
       message:
         $ref: '#/components/messages/stockReserved'
-    subscribe:
-      operationId: receiveStockReserved
-      summary: Receive that stock was reserved for an order.
-      description: >-
-        Each consumer receives the event from its own Service Bus queue, fed by an Event Grid
-        subscription on the event type.
-      security:
-        - entraIdEventGrid:
-            - https://eventgrid.azure.net/.default
-      tags:
-        - name: supply
-          description: Supply domain.
-      externalDocs:
-        description: Fulfilment process
-        url: https://github.com/azure-intelligence-domain/process-api-fulfilment
-      x-consumers:
-        demo:
-          - process-api-fulfilment
-      message:
-        $ref: '#/components/messages/stockReserved'
 components:
   securitySchemes:
     entraIdEventGrid:
       $ref: '../asyncapi/landscape.asyncapi.yaml#/components/securitySchemes/entraIdEventGrid'
   messages:
     stockReserved:
+      messageId: stockReserved
       name: stockReserved
       title: Stock Reserved
       summary: Stock was reserved for an order.

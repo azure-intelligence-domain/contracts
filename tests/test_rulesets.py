@@ -15,6 +15,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 RULESET = ROOT / ".spectral.yaml"
 ASYNC_TEMPLATE = "templates/event-producer.asyncapi.yaml"
+CONSUMER_TEMPLATE = "templates/event-consumer.asyncapi.yaml"
 REST_TEMPLATE = "templates/rest-api.openapi.yaml"
 SEVERITIES = {0: "error", 1: "warn", 2: "info", 3: "hint"}
 
@@ -61,7 +62,7 @@ def broken(workspace: Path, template: str, change) -> Path:
 
 @pytest.mark.parametrize(
     "contract",
-    [ASYNC_TEMPLATE, REST_TEMPLATE, "asyncapi/landscape.asyncapi.yaml"],
+    [ASYNC_TEMPLATE, CONSUMER_TEMPLATE, REST_TEMPLATE, "asyncapi/landscape.asyncapi.yaml"],
 )
 def test_templates_pass_every_rule(contract):
     assert lint(ROOT / contract) == {}
@@ -102,7 +103,6 @@ ASYNC_VIOLATIONS = {
     "platform-channel-description": lambda d: d["channels"][CHANNEL].pop("description"),
     "platform-channel-servers": lambda d: d["channels"][CHANNEL].pop("servers"),
     "platform-producers-listed": lambda d: d["channels"][CHANNEL]["publish"].pop("x-producers"),
-    "platform-consumers-listed": lambda d: d["channels"][CHANNEL]["subscribe"].pop("x-consumers"),
     "platform-operation-required-fields": lambda d: d["channels"][CHANNEL]["publish"].pop(
         "externalDocs"
     ),
@@ -115,6 +115,10 @@ ASYNC_VIOLATIONS = {
     "platform-asyncapi-id": lambda d: d.update(id="supply-events"),
     "platform-external-docs-catalog": lambda d: d.pop("externalDocs"),
     "asyncapi-info-description": lambda d: d["info"].pop("description"),
+    "platform-message-id": lambda d: message(d).pop("messageId"),
+    "platform-operation-one-direction": lambda d: d["channels"][CHANNEL].update(
+        subscribe=dict(d["channels"][CHANNEL]["publish"], operationId="receiveStockReserved")
+    ),
 }
 
 

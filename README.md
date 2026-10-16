@@ -16,7 +16,8 @@ with the adaptations listed in
 | [`src/integration_envelope/`](src/integration_envelope/) | Python library to create and validate envelopes (`integration-envelope`). |
 | [`asyncapi/landscape.asyncapi.yaml`](asyncapi/landscape.asyncapi.yaml) | Shared servers and security schemes every AsyncAPI contract refers to. |
 | [`rulesets/`](rulesets/) | Spectral lint rules: the adidas ruleset (vendored, unmodified) plus this platform's rules. |
-| [`templates/`](templates/) | Starting points for new contracts. They pass every lint rule. |
+| [`templates/`](templates/) | Starting points for new contracts: event producer, event consumer, REST API. They pass every lint rule. |
+| [`.github/workflows/contract-check.yml`](.github/workflows/contract-check.yml) | Reusable contract check every repository calls before it deploys. |
 
 ## The envelope
 
@@ -82,9 +83,57 @@ Install a released version, pinned:
 
 ```toml
 dependencies = [
-  "integration-envelope @ git+https://github.com/azure-intelligence-domain/contracts@v1.0.0",
+  "integration-envelope @ git+https://github.com/azure-intelligence-domain/contracts@v1.1.0",
 ]
 ```
+
+## Contract check: no contract, no deploy
+
+Every repository calls the reusable workflow before it deploys:
+
+```yaml
+jobs:
+  contracts:
+    uses: azure-intelligence-domain/contracts/.github/workflows/contract-check.yml@v1.1.0
+    with:
+      contracts: openapi.yaml asyncapi.yaml
+      contracts-ref: v1.1.0
+  deploy:
+    needs: contracts
+```
+
+```mermaid
+flowchart LR
+    pr["Change in a repository"] --> exists{"Contract<br/>exists?"}
+    exists -- no --> fail["❌ No deploy"]
+    exists -- yes --> lint{"adidas API<br/>guidelines?"}
+    lint -- "error or warning" --> fail
+    lint -- ok --> changed{"Changed since<br/>last release tag?"}
+    changed -- no --> ok["✅ Deploy"]
+    changed -- yes --> version{"info.version<br/>increased?"}
+    version -- no --> fail
+    version -- yes --> breaking{"Breaking<br/>change?"}
+    breaking -- yes --> fail
+    breaking -- no --> ok
+```
+
+Breaking changes follow the adidas rules for extending:
+
+| Contract | Tool | Breaking |
+|---|---|---|
+| OpenAPI | [oasdiff](https://github.com/oasdiff/oasdiff) (`ERR` level) | Removed paths or properties, new required parameters, changed types, … |
+| AsyncAPI | `@asyncapi/diff` for channels and operations, plus [`scripts/asyncapi-breaking.mjs`](scripts/asyncapi-breaking.mjs) for message payloads | Removed messages, properties or enum values; any change to `required`; changed types, constants or constraints |
+
+`@asyncapi/diff` does not classify payload schema changes, which is why the
+payload check exists. A change that cannot follow the rules for extending
+becomes a new event type on a new channel, or a new resource variant.
+
+### Producers and consumers
+
+A producer's AsyncAPI contract has only `publish` operations and owns the
+message definitions. Each consumer has its own contract with only `subscribe`
+operations, referring to the producer's released message. EventCatalog combines
+both into one picture of who sends and who receives.
 
 ## Versioning
 
@@ -97,7 +146,7 @@ dependencies = [
 ## Development
 
 ```bash
-uv sync && npm ci
+uv sync && npm ci && scripts/install-oasdiff.sh
 uv run ruff check . && uv run pytest
 npx spectral lint templates/*.yaml asyncapi/*.yaml --fail-severity=warn
 ```

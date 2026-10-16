@@ -1,0 +1,76 @@
+# Template for an event consumer's AsyncAPI contract.
+#
+# A consumer's contract only has subscribe operations. It never redefines a message: it refers to
+# the message in the producer's released contract, so the producer stays the single owner.
+# (adidas, events as notifications: producers do not need to know their consumers. Each consumer
+# declares its own dependency here, and EventCatalog combines producers and consumers.)
+#
+# Copy into the consuming repository as asyncapi.yaml. Then replace the relative $refs below by
+# released URLs, for example:
+#   https://raw.githubusercontent.com/azure-intelligence-domain/contracts/v1.1.0/asyncapi/landscape.asyncapi.yaml
+#   https://raw.githubusercontent.com/azure-intelligence-domain/system-api-wms/v1.0.0/asyncapi.yaml
+
+asyncapi: 2.6.0
+id: urn:azure-intelligence-domain:supply:process-api-fulfilment
+info:
+  title: '[Supply] Fulfilment Process Subscriptions'
+  version: 1.0.0
+  description: >-
+    The events the fulfilment process API receives. This file is the template for every event
+    consumer on the platform: it shows how a consumer refers to a producer's message and lists
+    itself as a consumer.
+  contact:
+    name: Supply integration team
+    url: https://github.com/azure-intelligence-domain/process-api-fulfilment
+  license:
+    name: MIT
+    url: https://github.com/azure-intelligence-domain/contracts/blob/main/LICENSE
+tags:
+  - name: supply
+    description: Supply domain.
+externalDocs:
+  description: EventCatalog entry of the fulfilment process API
+  url: https://github.com/azure-intelligence-domain/eventcatalog
+defaultContentType: application/cloudevents+json
+servers:
+  demo-service-bus:
+    $ref: '../asyncapi/landscape.asyncapi.yaml#/components/servers/demo-service-bus'
+channels:
+  supply.wms.event.stock-reserved:
+    description: >-
+      Stock was reserved in the warehouse for an order. The fulfilment process requests the
+      shipment from the third-party logistics partner when it receives this event.
+    servers:
+      - demo-service-bus
+    x-configurations:
+      demo:
+        eventGrid:
+          topic: evgt-intplat-supply
+          eventType: com.acme.supply.stock.reserved
+        serviceBus:
+          queue: sbq-process-api-fulfilment
+    subscribe:
+      operationId: receiveStockReserved
+      summary: Receive that stock was reserved for an order.
+      description: >-
+        The fulfilment process API receives the event from its own Service Bus queue, fed by an
+        Event Grid subscription on the event type. Failed messages go to the queue's dead-letter
+        queue.
+      security:
+        - entraIdServiceBus:
+            - https://servicebus.azure.net/.default
+      tags:
+        - name: supply
+          description: Supply domain.
+      externalDocs:
+        description: Fulfilment process
+        url: https://github.com/azure-intelligence-domain/process-api-fulfilment
+      x-consumers:
+        demo:
+          - process-api-fulfilment
+      message:
+        $ref: 'event-producer.asyncapi.yaml#/components/messages/stockReserved'
+components:
+  securitySchemes:
+    entraIdServiceBus:
+      $ref: '../asyncapi/landscape.asyncapi.yaml#/components/securitySchemes/entraIdServiceBus'

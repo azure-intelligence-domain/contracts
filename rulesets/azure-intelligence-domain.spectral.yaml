@@ -132,8 +132,36 @@ rules:
           type: object
           required: [operationId, summary, description, security, tags, externalDocs, message]
 
+  platform-operation-one-direction:
+    description: "A contract MUST NOT both publish and subscribe on the same channel. Producers own messages in publish operations; consumers refer to them in subscribe operations in their own contract."
+    severity: error
+    formats: [aas2]
+    given: $.channels[*]
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          not:
+            required: [publish, subscribe]
+
+  platform-message-id:
+    description: "Every message MUST have a camelCase messageId. The AsyncAPI parser and EventCatalog identify messages by it."
+    severity: error
+    formats: [aas2]
+    given: $.components.messages[*]
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: [messageId]
+          properties:
+            messageId:
+              type: string
+              pattern: "^[a-z][a-zA-Z0-9]*$"
+
   platform-producers-listed:
-    description: "Publish operations MUST list their producers per environment in x-producers. adidas says SHOULD; the Intelligence domain needs it to answer who produces what."
+    description: "Publish operations (in the producer's contract) MUST list the producers per environment in x-producers. adidas says SHOULD; the Intelligence domain needs it to answer who produces what."
     severity: error
     formats: [aas2]
     given: $.channels[*].publish
@@ -142,7 +170,7 @@ rules:
       function: truthy
 
   platform-consumers-listed:
-    description: "Subscribe operations MUST list their consumers per environment in x-consumers. adidas says SHOULD; the Intelligence domain needs it to answer which consumers break on a change."
+    description: "Subscribe operations (in the consumer's own contract) MUST list the consumers per environment in x-consumers. adidas says SHOULD; the Intelligence domain needs it to answer which consumers break on a change."
     severity: error
     formats: [aas2]
     given: $.channels[*].subscribe

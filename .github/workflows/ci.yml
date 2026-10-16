@@ -37,6 +37,15 @@ jobs:
       - run: npm ci
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked
+      - run: scripts/install-oasdiff.sh
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest -v
+
+  self-test:
+    name: Reusable contract check on the templates
+    uses: ./.github/workflows/contract-check.yml
+    with:
+      contracts: templates/event-producer.asyncapi.yaml templates/event-consumer.asyncapi.yaml templates/rest-api.openapi.yaml
+      contracts-ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      base: none

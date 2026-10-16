@@ -1,0 +1,76 @@
+name: contract-check
+
+# Reusable workflow: no contract, no deploy.
+#
+# Every repository that exposes or consumes an interface calls this before it deploys:
+#
+#   jobs:
+#     contracts:
+#       uses: azure-intelligence-domain/contracts/.github/workflows/contract-check.yml@v1.1.0
+#       with:
+#         contracts: openapi.yaml asyncapi.yaml
+#         contracts-ref: v1.1.0
+#     deploy:
+#       needs: contracts
+#
+# Checks per contract: it exists, it passes the adidas API guidelines (warnings fail), and
+# compared with the latest release tag its info.version increased and nothing broke.
+
+on:
+  workflow_call:
+    inputs:
+      contracts:
+        description: Contract files to check, separated by spaces.
+        type: string
+        required: true
+      contracts-ref:
+        description: Release of the contracts repository whose rules apply (pin it, e.g. v1.1.0).
+        type: string
+        required: true
+      base:
+        description: Release to compare with. Empty means the latest tag; 'none' skips the breaking-change check.
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  contract-check:
+    name: Contract check (adidas API guidelines)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository under test (with tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check out the platform rules
+        uses: actions/checkout@v4
+        with:
+          repository: azure-intelligence-domain/contracts
+          ref: ${{ inputs.contracts-ref }}
+          path: .contracts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: .contracts/package-lock.json
+      - run: npm ci --prefix .contracts
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Install oasdiff (checksum verified)
+        run: |
+          .contracts/scripts/install-oasdiff.sh "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Check contracts
+        env:
+          CONTRACTS: ${{ inputs.contracts }}
+          BASE: ${{ inputs.base }}
+        run: |
+          args=()
+          if [ -n "$BASE" ]; then args+=(--base "$BASE"); fi
+          # shellcheck disable=SC2086 # CONTRACTS is a space-separated list
+          uv run --project .contracts python .contracts/scripts/contract_check.py "${args[@]}" $CONTRACTS
