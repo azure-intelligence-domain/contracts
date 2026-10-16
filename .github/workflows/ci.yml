@@ -23,7 +23,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Spectral (warnings fail the build)
-        run: npx spectral lint "templates/*.yaml" "asyncapi/*.yaml" --fail-severity=warn --format github-actions --format stylish
+        run: npx spectral lint "templates/*.yaml" "asyncapi/*.yaml" --fail-severity=warn --format github-actions
 
   library:
     name: Envelope library and rule tests
